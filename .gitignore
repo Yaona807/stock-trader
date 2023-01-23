@@ -1,0 +1,3 @@
+*.png
+settings.py
+__pycache__
