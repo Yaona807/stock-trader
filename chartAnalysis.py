@@ -38,3 +38,34 @@ class chartAnalysis:
     cv2.imshow('', analyze_image)
     cv2.waitKey(0)
 
+    should_buy_stock = (
+      self.__isSlopesUpward(analyze_image, self.short_line_color) |
+      self.__isSlopesUpward(analyze_image, self.medium_line_color) |
+      self.__isSlopesUpward(analyze_image, self.long_line_color)
+    )
+
+    if should_buy_stock:
+      print('買いサイン点灯中')
+    else:
+      print('売りサイン点灯中')
+
+  def __isSlopesUpward(self, image, target_color):
+    height, width, _ = image.shape
+    positions = np.empty((0, 2), int)
+
+    for x in range(width):
+      for y in range(height):
+        if np.array_equal(image[y][x], target_color):
+          positions = np.append(positions, [[x, y]], axis=0)
+          continue
+
+    def _calcSlopes(x1, y1, x2, y2):
+      # 高さを補正する（y軸は上から0スタートのため） 
+      return (y1 - y2) / (x2 - x1)
+
+    slopes = -1
+    for i in range(len(positions) - 1):
+      slopes = max(slopes, _calcSlopes(positions[i][0], positions[i][1], positions[-1][0], positions[-1][1]))
+
+    return slopes > 0
+
