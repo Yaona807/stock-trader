@@ -39,9 +39,10 @@ class chartAnalysis:
     cv2.waitKey(0)
 
     should_buy_stock = (
-      self.__isSlopesUpward(analyze_image, self.short_line_color) |
-      self.__isSlopesUpward(analyze_image, self.medium_line_color) |
-      self.__isSlopesUpward(analyze_image, self.long_line_color)
+      self.__isSlopesUpward(analyze_image, self.short_line_color) and
+      self.__isSlopesUpward(analyze_image, self.medium_line_color) and
+      self.__isSlopesUpward(analyze_image, self.long_line_color) and
+      self.__isBottomLine(analyze_image, self.long_line_color)
     )
 
     if should_buy_stock:
@@ -67,5 +68,24 @@ class chartAnalysis:
     for i in range(len(positions) - 1):
       slopes = max(slopes, _calcSlopes(positions[i][0], positions[i][1], positions[-1][0], positions[-1][1]))
 
-    return slopes > 0
+    return slopes > 0.2
+
+  def __isBottomLine(self, image, target_color):
+    height, width, _ = image.shape
+
+    line_colors = np.empty((0, 3), int)
+    for x in range(width - 1, 0, -1):
+      for y in range(height):
+        if np.array_equal(image[y][x], np.array([0, 0, 0])):
+          continue
+        # 重複をさせないために前回と同じものであればcontinue
+        if len(line_colors) > 0 and np.array_equal(image[y][x], line_colors[-1]):
+          continue
+
+        line_colors = np.append(line_colors, [image[y][x]], axis=0)
+      if len(line_colors) > 0:
+        break
+
+    return all(np.equal(line_colors[-1], target_color))
+
 
