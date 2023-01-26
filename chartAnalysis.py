@@ -38,11 +38,14 @@ class chartAnalysis:
     cv2.imshow('', analyze_image)
     cv2.waitKey(0)
 
+    current_line_order = self.__getLineOrder(analyze_image, [self.medium_line_color.tolist()])
+    best_order = np.array([self.short_line_color, self.bearish_candle_stick_color, self.long_line_color])
+    is_perfect_order = np.array_equal(current_line_order, best_order)
     should_buy_stock = (
       self.__isSlopesUpward(analyze_image, self.short_line_color) and
       self.__isSlopesUpward(analyze_image, self.medium_line_color) and
       self.__isSlopesUpward(analyze_image, self.long_line_color) and
-      self.__isBottomLine(analyze_image, self.long_line_color)
+      is_perfect_order
     )
 
     if should_buy_stock:
@@ -66,11 +69,14 @@ class chartAnalysis:
 
     slopes = -1
     for i in range(len(positions) - 1):
-      slopes = max(slopes, _calcSlopes(positions[i][0], positions[i][1], positions[-1][0], positions[-1][1]))
+      current_slopes = _calcSlopes(positions[i][0], positions[i][1], positions[-1][0], positions[-1][1])
+      # 直近のものを判断に使いたいため、古いものは倍率を下げる
+      slopes = max(slopes, current_slopes * ((i + 1) / len(positions)))
 
+    print(slopes)
     return slopes > 0.2
 
-  def __isBottomLine(self, image, target_color):
+  def __getLineOrder(self, image, non_target_colors):
     height, width, _ = image.shape
 
     line_colors = np.empty((0, 3), int)
@@ -78,6 +84,10 @@ class chartAnalysis:
       for y in range(height):
         if np.array_equal(image[y][x], np.array([0, 0, 0])):
           continue
+
+        if image[y][x].tolist() in non_target_colors:
+          continue
+
         # 重複をさせないために前回と同じものであればcontinue
         if len(line_colors) > 0 and np.array_equal(image[y][x], line_colors[-1]):
           continue
@@ -86,6 +96,6 @@ class chartAnalysis:
       if len(line_colors) > 0:
         break
 
-    return all(np.equal(line_colors[-1], target_color))
+    return line_colors
 
 

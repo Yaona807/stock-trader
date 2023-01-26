@@ -169,8 +169,8 @@ class SBIController:
     # 読み込み完了まで待つ
     self.wait.until(EC.presence_of_all_elements_located)
 
-    # 負荷防止のため、1.5sは必ず停止する
-    time.sleep(1.5)
+    # 負荷防止のため、1sは必ず停止する
+    time.sleep(1)
 
   def close(self):
     self.driver.quit()
