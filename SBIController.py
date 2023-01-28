@@ -7,9 +7,17 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+from lxml import html
 import time
 
 class SBIController:
+  account_manager_selector = {
+    'cash': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(3) > td.mtext > div > font',
+    'all_stock_value': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(6) > td:nth-child(2) > div',
+    'stock_table': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(3) > table:nth-child(4)'
+  }
+
   def __init__(self):
     # seleniumの準備
     service = Service(ChromeDriverManager().install())
@@ -68,6 +76,49 @@ class SBIController:
     self.driver.switch_to.default_content()
 
     return chart_image_url
+
+  def getAssetsHeld(self):
+    self.__moveHOME()
+
+    def _getFormatTextNumber(target_number):
+      return target_number.replace('\xa0', '').replace(',', '')
+
+    def _getStockList(stock_table):
+      all_stock_info_list = []
+      for i, stock_info in enumerate(stock_table.tbody.contents):
+        # 見出しなどは除外
+        if i < 2:
+          continue
+
+        stock_info_list = list(stock_info.get_text(separator='\n').replace('\xa0', '').split('\n'))
+        if i % 2 == 0:
+          all_stock_info_list.append({
+            'stock_code': stock_info_list[0],
+            'stock_name': stock_info_list[1],
+          })
+        else:
+          all_stock_info_list[-1]['shares_held_number'] = int(_getFormatTextNumber(stock_info_list[0]))
+          all_stock_info_list[-1]['acquisition_price'] = int(_getFormatTextNumber(stock_info_list[1]))
+          all_stock_info_list[-1]['current_price'] = int(_getFormatTextNumber(stock_info_list[2]))
+          all_stock_info_list[-1]['valuation'] = int(_getFormatTextNumber(stock_info_list[3]))
+
+      return all_stock_info_list
+
+    try:
+      account_management_button = self.driver.find_element(by=By.XPATH, value='//*[@id="MAINAREA01"]/div[2]/div[1]/div/div/div/div/table/tbody/tr/td[2]/ul/li/a')
+      account_management_button.click()
+      self.__waitForDisplay()
+      soup = BeautifulSoup(self.driver.page_source, 'lxml')
+      assets_held = {
+        'cash': int(_getFormatTextNumber((soup.select_one(self.account_manager_selector['cash']).text))),
+        'all_stock_value': int(_getFormatTextNumber(soup.select_one(self.account_manager_selector['all_stock_value']).text)),
+        'all_stock_list': _getStockList(soup.select_one(self.account_manager_selector['stock_table'])),
+      }
+    except Exception as e:
+      print('保有資産の取得に失敗しました\n', e)
+      self.close()
+
+    return assets_held
 
   def __setChartTerm(self, term, periodicity):
     self.__waitForDisplay()
