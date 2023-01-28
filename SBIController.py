@@ -11,217 +11,237 @@ from bs4 import BeautifulSoup
 from lxml import html
 import time
 
+
 class SBIController:
-  account_manager_selector = {
-    'cash': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(3) > td.mtext > div > font',
-    'all_stock_value': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(6) > td:nth-child(2) > div',
-    'stock_table': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(3) > table:nth-child(4)'
-  }
+    account_manager_selector = {
+        'cash': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(3) > td.mtext > div > font',
+        'all_stock_value': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(6) > td:nth-child(2) > div',
+        'stock_table': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(3) > table:nth-child(4)'
+    }
 
-  def __init__(self):
-    # seleniumの準備
-    service = Service(ChromeDriverManager().install())
-    options = Options()
-    options.headless = True
-    self.driver = webdriver.Chrome(service=service, options=options)
-    self.wait = WebDriverWait(driver=self.driver, timeout=30)
+    def __init__(self):
+        # seleniumの準備
+        service = Service(ChromeDriverManager().install())
+        options = Options()
+        options.headless = True
+        self.driver = webdriver.Chrome(service=service, options=options)
+        self.wait = WebDriverWait(driver=self.driver, timeout=30)
 
-    # SBI証券のHPに移動する
-    self.driver.get('https://www.sbisec.co.jp/ETGate')
+        # SBI証券のHPに移動する
+        self.driver.get('https://www.sbisec.co.jp/ETGate')
 
-  def login(self, user_id, pass_word):
-    self.__moveHOME()
+    def login(self, user_id, pass_word):
+        self.__moveHOME()
 
-    try:
-      # IDの入力 
-      id_input_box = self.driver.find_element(by=By.NAME, value='user_id')
-      id_input_box.send_keys(user_id)
+        try:
+            # IDの入力
+            id_input_box = self.driver.find_element(
+                by=By.NAME, value='user_id')
+            id_input_box.send_keys(user_id)
 
-      # パスワードの入力
-      pass_word_input_box = self.driver.find_element(by=By.NAME, value='user_password')
-      pass_word_input_box.send_keys(pass_word)
+            # パスワードの入力
+            pass_word_input_box = self.driver.find_element(
+                by=By.NAME, value='user_password')
+            pass_word_input_box.send_keys(pass_word)
 
-      # ログイン
-      login_button = self.driver.find_element(by=By.NAME, value='ACT_login')
-      login_button.click()
-      self.__waitForDisplay()
-    except Exception as e:
-      print('ログイン失敗です\n', e)
-      self.close()
+            # ログイン
+            login_button = self.driver.find_element(
+                by=By.NAME, value='ACT_login')
+            login_button.click()
+            self.__waitForDisplay()
+        except Exception as e:
+            print('ログイン失敗です\n', e)
+            self.close()
 
-  def getChartImageURL(self, stock_code):
-    # チャート画面へ移動
-    self.__moveStockChart(stock_code)
+    def getChartImageURL(self, stock_code):
+        # チャート画面へ移動
+        self.__moveStockChart(stock_code)
 
-    # パラメータ設定
-    self.__setSMAValue(5, 75, 200)
+        # パラメータ設定
+        self.__setSMAValue(5, 75, 200)
 
-    # チャートの期間を設定
-    self.__setChartTerm('1日', '1分足')
+        # チャートの期間を設定
+        self.__setChartTerm('1日', '1分足')
 
-    try:
-      # iframeへスイッチ
-      iframe = self.driver.find_element(by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
-      self.driver.switch_to.frame(iframe)
+        try:
+            # iframeへスイッチ
+            iframe = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
+            self.driver.switch_to.frame(iframe)
 
-      chart_image_element = self.driver.find_element(by=By.ID, value='chartImg')
-      chart_image_url = chart_image_element.get_attribute('src')
-    except Exception as e:
-      print('チャート画像の取得に失敗しました\n', e)
-      self.close()
+            chart_image_element = self.driver.find_element(
+                by=By.ID, value='chartImg')
+            chart_image_url = chart_image_element.get_attribute('src')
+        except Exception as e:
+            print('チャート画像の取得に失敗しました\n', e)
+            self.close()
 
-    self.__waitForDisplay()
+        self.__waitForDisplay()
 
-    # iframeから戻す
-    self.driver.switch_to.default_content()
+        # iframeから戻す
+        self.driver.switch_to.default_content()
 
-    return chart_image_url
+        return chart_image_url
 
-  def getAssetsHeld(self):
-    self.__moveHOME()
+    def getAssetsHeld(self):
+        self.__moveHOME()
 
-    def _getFormatTextNumber(target_number):
-      return target_number.replace('\xa0', '').replace(',', '')
+        def _getFormatTextNumber(target_number):
+            return target_number.replace('\xa0', '').replace(',', '')
 
-    def _getStockList(stock_table):
-      all_stock_info_list = []
-      for i, stock_info in enumerate(stock_table.tbody.contents):
-        # 見出しなどは除外
-        if i < 2:
-          continue
+        def _getStockList(stock_table):
+            all_stock_info_list = []
+            for i, stock_info in enumerate(stock_table.tbody.contents):
+                # 見出しなどは除外
+                if i < 2:
+                    continue
 
-        stock_info_list = list(stock_info.get_text(separator='\n').replace('\xa0', '').split('\n'))
-        if i % 2 == 0:
-          all_stock_info_list.append({
-            'stock_code': stock_info_list[0],
-            'stock_name': stock_info_list[1],
-          })
-        else:
-          all_stock_info_list[-1]['shares_held_number'] = int(_getFormatTextNumber(stock_info_list[0]))
-          all_stock_info_list[-1]['acquisition_price'] = int(_getFormatTextNumber(stock_info_list[1]))
-          all_stock_info_list[-1]['current_price'] = int(_getFormatTextNumber(stock_info_list[2]))
-          all_stock_info_list[-1]['valuation'] = int(_getFormatTextNumber(stock_info_list[3]))
+                stock_info_list = list(stock_info.get_text(
+                    separator='\n').replace('\xa0', '').split('\n'))
+                if i % 2 == 0:
+                    all_stock_info_list.append({
+                        'stock_code': stock_info_list[0],
+                        'stock_name': stock_info_list[1],
+                    })
+                else:
+                    all_stock_info_list[-1]['shares_held_number'] = int(
+                        _getFormatTextNumber(stock_info_list[0]))
+                    all_stock_info_list[-1]['acquisition_price'] = int(
+                        _getFormatTextNumber(stock_info_list[1]))
+                    all_stock_info_list[-1]['current_price'] = int(
+                        _getFormatTextNumber(stock_info_list[2]))
+                    all_stock_info_list[-1]['valuation'] = int(
+                        _getFormatTextNumber(stock_info_list[3]))
 
-      return all_stock_info_list
+            return all_stock_info_list
 
-    try:
-      account_management_button = self.driver.find_element(by=By.XPATH, value='//*[@id="MAINAREA01"]/div[2]/div[1]/div/div/div/div/table/tbody/tr/td[2]/ul/li/a')
-      account_management_button.click()
-      self.__waitForDisplay()
-      soup = BeautifulSoup(self.driver.page_source, 'lxml')
-      assets_held = {
-        'cash': int(_getFormatTextNumber((soup.select_one(self.account_manager_selector['cash']).text))),
-        'all_stock_value': int(_getFormatTextNumber(soup.select_one(self.account_manager_selector['all_stock_value']).text)),
-        'all_stock_list': _getStockList(soup.select_one(self.account_manager_selector['stock_table'])),
-      }
-    except Exception as e:
-      print('保有資産の取得に失敗しました\n', e)
-      self.close()
+        try:
+            account_management_button = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="MAINAREA01"]/div[2]/div[1]/div/div/div/div/table/tbody/tr/td[2]/ul/li/a')
+            account_management_button.click()
+            self.__waitForDisplay()
+            soup = BeautifulSoup(self.driver.page_source, 'lxml')
+            assets_held = {
+                'cash': int(_getFormatTextNumber((soup.select_one(self.account_manager_selector['cash']).text))),
+                'all_stock_value': int(_getFormatTextNumber(soup.select_one(self.account_manager_selector['all_stock_value']).text)),
+                'all_stock_list': _getStockList(soup.select_one(self.account_manager_selector['stock_table'])),
+            }
+        except Exception as e:
+            print('保有資産の取得に失敗しました\n', e)
+            self.close()
 
-    return assets_held
+        return assets_held
 
-  def __setChartTerm(self, term, periodicity):
-    self.__waitForDisplay()
+    def __setChartTerm(self, term, periodicity):
+        self.__waitForDisplay()
 
-    try:
-      # iframeへスイッチ
-      iframe = self.driver.find_element(by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
-      self.driver.switch_to.frame(iframe)
+        try:
+            # iframeへスイッチ
+            iframe = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
+            self.driver.switch_to.frame(iframe)
 
-      term_button = self.driver.find_element(by=By.LINK_TEXT, value=term)
-      term_button.click()
-      self.__waitForDisplay()
+            term_button = self.driver.find_element(by=By.LINK_TEXT, value=term)
+            term_button.click()
+            self.__waitForDisplay()
 
-      select_box = self.driver.find_element(By.NAME, 'mode')
-      select = Select(select_box)
+            select_box = self.driver.find_element(By.NAME, 'mode')
+            select = Select(select_box)
 
-      select.select_by_visible_text(periodicity)
+            select.select_by_visible_text(periodicity)
 
-    except Exception as e:
-      print('チャートの期間の設定に失敗しました\n', e)
-      self.close()
+        except Exception as e:
+            print('チャートの期間の設定に失敗しました\n', e)
+            self.close()
 
-    self.__waitForDisplay()
+        self.__waitForDisplay()
 
-    # iframeから戻す
-    self.driver.switch_to.default_content()
+        # iframeから戻す
+        self.driver.switch_to.default_content()
 
-  def __setSMAValue(self, short_term, medium_term, long_term):
-    self.__waitForDisplay()
+    def __setSMAValue(self, short_term, medium_term, long_term):
+        self.__waitForDisplay()
 
-    try:
-      # iframeへスイッチ
-      iframe = self.driver.find_element(by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
-      self.driver.switch_to.frame(iframe)
+        try:
+            # iframeへスイッチ
+            iframe = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
+            self.driver.switch_to.frame(iframe)
 
-      short_term_input_box = self.driver.find_element(by=By.ID, value="param1")
-      short_term_input_box.clear()
-      short_term_input_box.send_keys(short_term)
+            short_term_input_box = self.driver.find_element(
+                by=By.ID, value="param1")
+            short_term_input_box.clear()
+            short_term_input_box.send_keys(short_term)
 
-      medium_term_input_box = self.driver.find_element(by=By.ID, value="param2")
-      medium_term_input_box.clear()
-      medium_term_input_box.send_keys(medium_term)
+            medium_term_input_box = self.driver.find_element(
+                by=By.ID, value="param2")
+            medium_term_input_box.clear()
+            medium_term_input_box.send_keys(medium_term)
 
-      long_term_input_box = self.driver.find_element(by=By.ID, value="param3")
-      long_term_input_box.clear()
-      long_term_input_box.send_keys(long_term)
+            long_term_input_box = self.driver.find_element(
+                by=By.ID, value="param3")
+            long_term_input_box.clear()
+            long_term_input_box.send_keys(long_term)
 
-      show_chart_button = self.driver.find_element(by=By.ID, value="showChart")
-      show_chart_button.click()
-    except Exception as e:
-      print('単純移動平均線のパラメータ設定に失敗しました\n', e)
-      self.close()
+            show_chart_button = self.driver.find_element(
+                by=By.ID, value="showChart")
+            show_chart_button.click()
+        except Exception as e:
+            print('単純移動平均線のパラメータ設定に失敗しました\n', e)
+            self.close()
 
-    self.__waitForDisplay()
+        self.__waitForDisplay()
 
-    # iframeから戻す
-    self.driver.switch_to.default_content()
+        # iframeから戻す
+        self.driver.switch_to.default_content()
 
-  def __moveStockChart(self, stock_code):
-    # 銘柄検索
-    self.__searchStock(stock_code)
+    def __moveStockChart(self, stock_code):
+        # 銘柄検索
+        self.__searchStock(stock_code)
 
-    try:
-      chart_button = self.driver.find_element(by=By.XPATH, value='//*[@id="main"]/form[2]/div[3]/div/div/table/tbody/tr[1]/td[3]/span/a')
-      chart_button.click()
-      self.__waitForDisplay()
-    except Exception as e:
-      print('チャート画面への移動に失敗しました\n', e)
-      self.close()
+        try:
+            chart_button = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="main"]/form[2]/div[3]/div/div/table/tbody/tr[1]/td[3]/span/a')
+            chart_button.click()
+            self.__waitForDisplay()
+        except Exception as e:
+            print('チャート画面への移動に失敗しました\n', e)
+            self.close()
 
+    def __moveHOME(self):
+        self.__waitForDisplay()
 
-  def __moveHOME(self):
-    self.__waitForDisplay()
+        try:
+            HOME_button = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="navi01P"]/ul/li[1]/a/img')
+            HOME_button.click()
+            self.__waitForDisplay()
+        except Exception as e:
+            print('HOME画面への移動に失敗しました\n', e)
+            self.close()
 
-    try:
-      HOME_button = self.driver.find_element(by=By.XPATH, value='//*[@id="navi01P"]/ul/li[1]/a/img')
-      HOME_button.click()
-      self.__waitForDisplay()
-    except Exception as e:
-      print('HOME画面への移動に失敗しました\n', e)
-      self.close()
+    def __searchStock(self, stock_code):
+        self.__waitForDisplay()
 
-  def __searchStock(self, stock_code):
-    self.__waitForDisplay()
+        # 起点の画面へ移動
+        self.__moveHOME()
 
-    # 起点の画面へ移動
-    self.__moveHOME()
+        try:
+            search_input_box = self.driver.find_element(
+                by=By.ID, value="top_stock_sec")
+            search_input_box.send_keys(stock_code)
+            search_input_box.send_keys(Keys.ENTER)
+            self.__waitForDisplay()
+        except Exception as e:
+            print('銘柄検索に失敗しました\n', e)
+            self.close()
 
-    try:
-      search_input_box = self.driver.find_element(by=By.ID, value="top_stock_sec")
-      search_input_box.send_keys(stock_code)
-      search_input_box.send_keys(Keys.ENTER)
-      self.__waitForDisplay()
-    except Exception as e:
-      print('銘柄検索に失敗しました\n', e)
-      self.close()
+    def __waitForDisplay(self):
+        # 読み込み完了まで待つ
+        self.wait.until(EC.presence_of_all_elements_located)
 
-  def __waitForDisplay(self):
-    # 読み込み完了まで待つ
-    self.wait.until(EC.presence_of_all_elements_located)
+        # 負荷防止のため、1sは必ず停止する
+        time.sleep(1)
 
-    # 負荷防止のため、1sは必ず停止する
-    time.sleep(1)
-
-  def close(self):
-    self.driver.quit()
+    def close(self):
+        self.driver.quit()
