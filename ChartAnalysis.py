@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from urllib.request import urlopen
 
 
-class chartAnalysis:
+class ChartAnalysis:
     # BGR表記
     bullish_candle_stick_color = np.array([51, 0, 255])
     bearish_candle_stick_color = np.array([153, 51, 0])

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from SBIController import SBIController
-from chartAnalysis import chartAnalysis
+from ChartAnalysis import ChartAnalysis
+from Order import Order
 import settings
 
 
@@ -9,14 +10,22 @@ def main():
     # 初期設定
     user_id = settings.user_id
     pass_word = settings.pass_word
+    trading_password = settings.trading_password
     stock_code = settings.stock_code
 
     SBI = SBIController()
 
     print('ログイン中')
     SBI.login(user_id, pass_word)
-    print('資産状況を取得中')
-    print(SBI.getAssetsHeld())
+    order = Order(
+        trading_type='Buy',
+        stock_code='9318',
+        order_price=9,
+        order_type=0,
+    )
+    SBI.orderStock(order, trading_password)
+    # print('資産状況を取得中')
+    # print(SBI.getAssetsHeld())
     # print('URL取得中')
     # chart_url = SBI.getChartImageURL(stock_code)
     # SBI.close()

@@ -9,6 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from lxml import html
+from Order import Order
 import time
 
 
@@ -23,7 +24,7 @@ class SBIController:
         # seleniumの準備
         service = Service(ChromeDriverManager().install())
         options = Options()
-        options.headless = True
+        options.headless = True and False
         self.driver = webdriver.Chrome(service=service, options=options)
         self.wait = WebDriverWait(driver=self.driver, timeout=30)
 
@@ -82,6 +83,84 @@ class SBIController:
         self.driver.switch_to.default_content()
 
         return chart_image_url
+
+    def orderStock(self, order, trading_password=None):
+        if not (isinstance(order, Order)):
+            raise TypeError('"order" must be an instance of "Order"')
+        if trading_password == None:
+            raise TypeError('"trading_password" must be specified')
+
+        self.__moveHOME()
+
+        try:
+            order_button = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="sb_userinfo_02_torihiki"]/a')
+            order_button.click()
+            self.__waitForDisplay()
+
+            order_type_button = self.driver.find_element(
+                by=By.ID, value='genK') if order.trading_type == 'Buy' else self.driver.find_element(by=By.ID, value='genU')
+            order_type_button.click()
+
+            stock_code_input = self.driver.find_element(
+                by=By.NAME, value='stock_sec_code')
+            stock_code_input.send_keys(order.stock_code)
+            stock_code_input.send_keys(Keys.ENTER)
+            self.__waitForDisplay()
+
+            market_select_box = Select(self.driver.find_element(
+                by=By.ID, value='input_market_normal'))
+            for option in market_select_box.options:
+                if option.get_attribute('value') == order.market_type:
+                    market_select_box.select_by_value(order.market_type)
+            else:
+                market_select_box.select_by_index(0)
+
+            self.__waitForDisplay()
+
+            stock_number_input = self.driver.find_element(
+                by=By.ID, value='input_quantity')
+            stock_number_input.send_keys(order.stock_number)
+
+            order_radio = [
+                self.driver.find_element(by=By.ID, value='sashine'),
+                self.driver.find_element(by=By.ID, value='nariyuki'),
+            ]
+            order_radio[order.order_type].click()
+
+            if order.order_type == 0:
+                price_input = self.driver.find_element(
+                    by=By.ID, value='input_price')
+                price_input.send_keys(order.order_price)
+
+            deposit_category_radio = self.driver.find_elements(
+                by=By.CSS_SELECTOR, value='#normal > tbody > tr:nth-child(6) > td > table > tbody > tr:nth-child(2) > td > label')
+
+            for i in range(len(deposit_category_radio)):
+                if deposit_category_radio[i].text == '特定預り':
+                    deposit_category_radio[i].click()
+
+            self.__waitForDisplay()
+
+            password_input = self.driver.find_element(by=By.ID, value='pwd3')
+            password_input.send_keys(trading_password)
+
+            # 注文を確定させる
+            self.driver.find_element(by=By.ID, value='shouryaku').click()
+            self.driver.find_element(
+                by=By.CSS_SELECTOR, value='#botton2 > img').click()
+            self.__waitForDisplay()
+
+            if '注文受付' in self.driver.find_element(by=By.CLASS_NAME, value='md-l-heading-00-inner').text:
+                print(
+                    f'注文受付に成功しました: 証券コード{order.stock_code}を{order.stock_number}株 {order.trading_type} Order'
+                )
+            else:
+                raise Exception('注文受付に失敗しました')
+
+        except Exception as e:
+            print('株の注文に失敗しました\n', e)
+            self.close()
 
     def getAssetsHeld(self):
         self.__moveHOME()
@@ -210,6 +289,9 @@ class SBIController:
 
     def __moveHOME(self):
         self.__waitForDisplay()
+
+        if self.driver.title == 'SBI証券｜株・FX・投資信託・確定拠出年金・NISA':
+            return
 
         try:
             HOME_button = self.driver.find_element(
