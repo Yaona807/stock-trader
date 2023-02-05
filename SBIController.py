@@ -10,6 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from lxml import html
 from Order import Order
+from Chart import Chart
 import time
 
 
@@ -54,15 +55,47 @@ class SBIController:
             print('ログイン失敗です\n', e)
             self.close()
 
-    def getChartImageURL(self, stock_code):
+    def getChartImageURL(self, stock_code, chart):
+        if type(stock_code) is not int and stock_code.isdecimal() == False:
+            raise ValueError('stock_codeの型が不正です')
+        if isinstance(chart, Chart) == False:
+            raise ValueError('chartの型が不正です')
+
+        term_dict = {
+            '1D': '1日',
+            '2D': '2日',
+            '3D': '3日',
+            '5D': '5日',
+            '10D': '10日',
+            '1M': '1ケ月',
+            '2M': '2ケ月',
+            '3M': '3ケ月',
+            '6M': '6ケ月',
+            '1Y': '1年',
+        }
+        periodicity_dict = {
+            '1m': '1分足',
+            '5m': '5分足',
+            '15m': '15分足',
+            '60m': '1時間足',
+            '1D': '日足',
+            '1W': '週足',
+            '1M': '月足',
+        }
+
         # チャート画面へ移動
         self.__moveStockChart(stock_code)
 
+        # チャートスタイルを設定
+        self.__setChartStyle(chart.style)
+
         # パラメータ設定
-        self.__setSMAValue(5, 75, 200)
+        self.__setSMAValue(chart.short_param,
+                           chart.medium_param, chart.long_param)
 
         # チャートの期間を設定
-        self.__setChartTerm('1日', '1分足')
+        self.__setChartTerm(term_dict[chart.term],
+                            periodicity_dict[chart.periodicity])
 
         try:
             # iframeへスイッチ
@@ -85,7 +118,7 @@ class SBIController:
         return chart_image_url
 
     def orderStock(self, order, trading_password=None):
-        if not (isinstance(order, Order)):
+        if isinstance(order, Order) == False:
             raise TypeError('"order" must be an instance of "Order"')
         if trading_password == None:
             raise TypeError('"trading_password" must be specified')
@@ -211,6 +244,32 @@ class SBIController:
 
         return assets_held
 
+    def __setChartStyle(self, style):
+        self.__waitForDisplay()
+
+        chart_style_dict = {
+            'candle': 'ローソク足',
+            'line': 'ラインチャート',
+        }
+        try:
+            # iframeへスイッチ
+            iframe = self.driver.find_element(
+                by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
+            self.driver.switch_to.frame(iframe)
+
+            chart_type_select = Select(
+                self.driver.find_element(by=By.ID, value='chartType'))
+            chart_type_select.select_by_visible_text(chart_style_dict[style])
+
+        except Exception as e:
+            print('チャートのスタイル設定に失敗しました\n', e)
+            self.close()
+
+        self.__waitForDisplay()
+
+        # iframeから戻す
+        self.driver.switch_to.default_content()
+
     def __setChartTerm(self, term, periodicity):
         self.__waitForDisplay()
 
@@ -238,7 +297,7 @@ class SBIController:
         # iframeから戻す
         self.driver.switch_to.default_content()
 
-    def __setSMAValue(self, short_term, medium_term, long_term):
+    def __setSMAValue(self, short_param, medium_param, long_param):
         self.__waitForDisplay()
 
         try:
@@ -247,20 +306,20 @@ class SBIController:
                 by=By.XPATH, value='//*[@id="main"]/div[6]/iframe')
             self.driver.switch_to.frame(iframe)
 
-            short_term_input_box = self.driver.find_element(
+            short_param_input_box = self.driver.find_element(
                 by=By.ID, value="param1")
-            short_term_input_box.clear()
-            short_term_input_box.send_keys(short_term)
+            short_param_input_box.clear()
+            short_param_input_box.send_keys(short_param)
 
-            medium_term_input_box = self.driver.find_element(
+            medium_param_input_box = self.driver.find_element(
                 by=By.ID, value="param2")
-            medium_term_input_box.clear()
-            medium_term_input_box.send_keys(medium_term)
+            medium_param_input_box.clear()
+            medium_param_input_box.send_keys(medium_param)
 
-            long_term_input_box = self.driver.find_element(
+            long_param_input_box = self.driver.find_element(
                 by=By.ID, value="param3")
-            long_term_input_box.clear()
-            long_term_input_box.send_keys(long_term)
+            long_param_input_box.clear()
+            long_param_input_box.send_keys(long_param)
 
             show_chart_button = self.driver.find_element(
                 by=By.ID, value="showChart")
