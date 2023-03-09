@@ -12,13 +12,15 @@ from lxml import html
 from Order import Order
 from Chart import Chart
 import time
+import re
 
 
 class SBIController:
     account_manager_selector = {
         'cash': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(3) > td.mtext > div > font',
         'all_stock_value': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(6) > td:nth-child(2) > div',
-        'stock_table': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(3) > table:nth-child(4)'
+        'all_investment_trust_value': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(1) > table:nth-child(7) > tbody > tr:nth-child(7) > td:nth-child(2) > div',
+        'stock_table': 'body > div > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td > table:nth-child(1) > tbody > tr > td > form > table:nth-child(3) > tbody > tr:nth-child(1) > td:nth-child(2) > table:nth-child(19) > tbody > tr > td:nth-child(3)'
     }
 
     def __init__(self):
@@ -201,29 +203,46 @@ class SBIController:
         def _getFormatTextNumber(target_number):
             return target_number.replace('\xa0', '').replace(',', '')
 
-        def _getStockList(stock_table):
+        def _getStockList(stock_tables):
             all_stock_info_list = []
-            for i, stock_info in enumerate(stock_table.tbody.contents):
-                # 見出しなどは除外
-                if i < 2:
+            for stock_table in stock_tables.select('table'):
+                # 保有している株式と投資信託のテーブル以外は処理しない
+                if not re.search(r'株式（(現物|信用)/(一般|特定|NISA)預り）|投資信託（金額/(特定|一般|つみたてNISA)預り）', stock_table.text):
                     continue
 
-                stock_info_list = list(stock_info.get_text(
-                    separator='\n').replace('\xa0', '').split('\n'))
-                if i % 2 == 0:
-                    all_stock_info_list.append({
-                        'stock_code': stock_info_list[0],
-                        'stock_name': stock_info_list[1],
-                    })
-                else:
-                    all_stock_info_list[-1]['shares_held_number'] = int(
-                        _getFormatTextNumber(stock_info_list[0]))
-                    all_stock_info_list[-1]['acquisition_price'] = int(
-                        _getFormatTextNumber(stock_info_list[1]))
-                    all_stock_info_list[-1]['current_price'] = int(
-                        _getFormatTextNumber(stock_info_list[2]))
-                    all_stock_info_list[-1]['valuation'] = int(
-                        _getFormatTextNumber(stock_info_list[3]))
+                stock_type = None
+                for i, stock_info in enumerate(stock_table.tbody.contents):
+                    # 保有資産の種類を取得
+                    if i == 0:
+                        stock_type = stock_info.text
+
+                    # テーブルのヘッダーなどを除外
+                    if i < 2:
+                        continue
+
+                    stock_info_list = list(stock_info.get_text(
+                        separator='\n').replace('\xa0', '').split('\n'))
+                    if i % 2 == 0:
+                        if re.search(r'株式', stock_type):
+                            all_stock_info_list.append({
+                                'stock_type': stock_type,
+                                'stock_code': stock_info_list[0],
+                                'stock_name': stock_info_list[1],
+                            })
+                        elif re.search(r'投資信託', stock_type):
+                            all_stock_info_list.append({
+                                'stock_type': stock_type,
+                                'stock_name': stock_info_list[0],
+                            })
+                    else:
+                        all_stock_info_list[-1]['shares_held'] = int(
+                            _getFormatTextNumber(stock_info_list[0]))
+                        all_stock_info_list[-1]['acquisition_price'] = int(
+                            _getFormatTextNumber(stock_info_list[1]))
+                        all_stock_info_list[-1]['current_price'] = int(
+                            _getFormatTextNumber(stock_info_list[2]))
+                        all_stock_info_list[-1]['valuation'] = int(
+                            _getFormatTextNumber(stock_info_list[3]))
 
             return all_stock_info_list
 
@@ -236,6 +255,7 @@ class SBIController:
             assets_held = {
                 'cash': int(_getFormatTextNumber((soup.select_one(self.account_manager_selector['cash']).text))),
                 'all_stock_value': int(_getFormatTextNumber(soup.select_one(self.account_manager_selector['all_stock_value']).text)),
+                'all_investment_trust_value': int(_getFormatTextNumber(soup.select_one(self.account_manager_selector['all_investment_trust_value']).text)),
                 'all_stock_list': _getStockList(soup.select_one(self.account_manager_selector['stock_table'])),
             }
         except Exception as e:

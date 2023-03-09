@@ -5,9 +5,11 @@ from ChartAnalysis import ChartAnalysis
 from Order import Order
 from Chart import Chart
 import settings
+import json
+import sys
 
 
-def main():
+def main(type):
     # 初期設定
     user_id = settings.user_id
     pass_word = settings.pass_word
@@ -16,19 +18,13 @@ def main():
 
     SBI = SBIController()
 
-    print('ログイン中')
+    # print('ログイン中')
     SBI.login(user_id, pass_word)
-    chart = Chart(
-        style='line',
-        term='1Y',
-        periodicity='1D',
-        short_param=25,
-        medium_param=75,
-        long_param=200,
-    )
-    CA = ChartAnalysis()
-    CA.readImageForUrl(SBI.getChartImageURL('9318', chart))
-    CA.show()
+    
+    if type == 'get_assets_held':
+        print(json.dumps(SBI.getAssetsHeld()))
+        
 
 if __name__ == '__main__':
-    main()
+    args = sys.argv
+    main(args[1])

@@ -1,4 +1,4 @@
-class Chart():
+class Chart:
     def __init__(self, style='candle' ,term='1D', periodicity='1m', short_param=5, medium_param=25, long_param=75):
         if style not in ['candle', 'line']:
             raise ValueError('style must be candle or line')
