@@ -12,7 +12,7 @@ export default function Registration() {
   const router = useRouter();
 
   const onSubmit: SubmitHandler<any> = async (data) => {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch("/api/user/create", {
       headers: {
         "Content-Type": "application/json",
       },
@@ -21,7 +21,8 @@ export default function Registration() {
     });
 
     if (res.ok) {
-      router.push("/mypage/home");
+      console.log('OK')
+      // router.push("/mypage/home");
     }
   };
 
