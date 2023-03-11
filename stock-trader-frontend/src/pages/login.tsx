@@ -16,9 +16,11 @@ export default function Login() {
       },
       body: JSON.stringify(data),
       method: "POST",
-    }).then(() => {
-      router.push("/mypage/home");
     });
+
+    if (res.ok) {
+      router.push("/mypage/home");
+    }
   };
 
   return (
