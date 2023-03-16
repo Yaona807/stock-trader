@@ -7,27 +7,21 @@ import { useRouter } from "next/router";
 
 interface props {
   variant: "text" | "contained" | "outlined";
-  fetch_url: URL;
   label: string;
-  callback: Function;
+  onClick: Function;
 }
 
 const FetchButton = (props: props) => {
   const [isLoading, setIsLoading] = useState(false);
+  const { variant, label, onClick } = props;
   const router = useRouter();
 
-  const clickFetchButton: MouseEventHandler<HTMLButtonElement> = (e) => {
+  const clickFetchButton: MouseEventHandler<HTMLButtonElement> = async (e) => {
     if (isLoading) return;
 
-    e.preventDefault();
     setIsLoading(true);
-
-    fetch(props.fetch_url, {
-      method: "POST",
-    }).then(() => {
-      router.push('/login');
-    });
-    setIsLoading(false);
+    await onClick(e);
+    await setIsLoading(false);
   };
 
   if (isLoading) {
@@ -35,8 +29,8 @@ const FetchButton = (props: props) => {
   }
 
   return (
-    <Button variant={props.variant} onClick={clickFetchButton}>
-      {props.label}
+    <Button variant={variant} onClick={clickFetchButton}>
+      {label}
     </Button>
   );
 };

@@ -2,6 +2,10 @@ import { Paper } from "@mui/material";
 import { Box } from "@mui/material";
 import { Grid } from "@mui/material";
 
+const isInvestmentTrust = (stock_type: string) => {
+  return /投資信託/.test(stock_type);
+};
+
 const formatNumberForRendering = (num: number) => {
   if (num > 0) {
     return (
@@ -21,7 +25,18 @@ const formatNumberForRendering = (num: number) => {
   return <Box component="span">{num}</Box>;
 };
 
-const renderValuation = (valuation: number) => {
+const renderValuation = (stock: any) => {
+  const valuation: number = (() => {
+    const valuation =
+      (stock.current_price - stock.acquisition_price) * stock.shares_held;
+
+    if (isInvestmentTrust(stock.stock_type)) {
+      return Math.round(valuation / 10000);
+    }
+
+    return valuation;
+  })();
+
   return (
     <Box display="flex" justifyContent="flex-end">
       <Box component="span">{"含み益 "}</Box>
@@ -30,10 +45,7 @@ const renderValuation = (valuation: number) => {
   );
 };
 
-const renderStockName = (
-  stock_name: string,
-  stock_code?: string
-) => {
+const renderStockName = (stock_name: string, stock_code?: string) => {
   return (
     <Box
       sx={{
@@ -60,23 +72,23 @@ const renderStockName = (
 };
 
 const AssetContainer = (props: any) => {
-  const { assets } = props;
+  const { stocks } = props;
 
   return (
     <Grid container spacing={2} justifyContent="center" justifyItems="center">
-      {assets.all_stock_list.map((stock, index) => (
+      {stocks.map((stock, index) => (
         <Grid key={index} item xs={12}>
           <Paper elevation={3} sx={{ padding: "16px" }}>
             <Box display="flex" justifyContent="space-between">
-              <Box>{stock.type}</Box>
+              <Box>{stock.stock_type}</Box>
               <Box>{"現在価格 " + stock.current_price}</Box>
             </Box>
             {renderStockName(stock.stock_name)}
             <Box>
               {"平均取得単価 " + stock.acquisition_price + "円"}
-              {" × " + stock.shares_held_number + "株"}
+              {" × " + stock.shares_held + "株"}
             </Box>
-            {renderValuation(stock.valuation)}
+            {renderValuation(stock)}
           </Paper>
         </Grid>
       ))}

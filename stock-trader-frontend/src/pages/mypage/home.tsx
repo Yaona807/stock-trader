@@ -6,24 +6,22 @@ import { Paper } from "@mui/material";
 import { Box } from "@mui/material";
 import { Grid } from "@mui/material";
 import { Typography } from "@mui/material";
-import { useState } from "react";
+import { MouseEventHandler, useState } from "react";
 import { Assessment } from "@mui/icons-material";
 
 type stock = {
   acquisition_price: number;
   current_price: number;
-  shares_held_number: number;
+  shares_held: number;
   stock_code: string;
   stock_name: string;
-  type: string;
+  stock_type: string;
   valuation: number;
 };
 
 type assets_held = {
-  all_investment_trust_value: number;
-  all_stock_list: Array<stock>;
-  all_stock_value: number;
-  cash: number;
+  stocks: Array<stock>;
+  total_assets: number;
 };
 
 type responce = {
@@ -32,11 +30,28 @@ type responce = {
 
 export default function Home() {
   const [assets, setAssets] = useState({
-    all_investment_trust_value: 0,
-    all_stock_list: [],
-    all_stock_value: 0,
-    cash: 0,
+    stocks: [],
+    total_assets: 0,
   } as assets_held);
+
+  const fetchAssets: MouseEventHandler<HTMLButtonElement> = async (e) => {
+    e.preventDefault();
+
+    await fetch("/api/sbi/assets", {
+      method: "POST",
+    })
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        }
+      })
+      .then((latest_assets) => {
+        if (!latest_assets) {
+          return;
+        }
+        setAssets(latest_assets);
+      });
+  };
 
   const updateAssets = (latest_assets_info: responce) => {
     setAssets(latest_assets_info.assets_held);
@@ -47,9 +62,8 @@ export default function Home() {
       <div className={styles.main}>
         <FetchButton
           variant="contained"
-          fetch_url={new URL("http://localhost:3000/api/auth/logout")}
-          label="ログイン"
-          callback={updateAssets}
+          label="資産を更新"
+          onClick={fetchAssets}
         />
         <div>
           <div className={styles.title}>
@@ -58,19 +72,13 @@ export default function Home() {
           <Box className={styles.box}>
             <Paper elevation={3} className={styles.paper}>
               <div className={styles.money}>
-                <span>
-                  {(
-                    assets.all_stock_value +
-                    assets.all_investment_trust_value +
-                    assets.cash
-                  ).toLocaleString()}
-                </span>
+                <span>{assets.total_assets.toLocaleString()}</span>
                 <span>円</span>
               </div>
             </Paper>
           </Box>
         </div>
-        <AssetContainer assets={assets}></AssetContainer>
+        <AssetContainer stocks={assets.stocks}></AssetContainer>
       </div>
     </>
   );

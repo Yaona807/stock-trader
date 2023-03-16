@@ -5,7 +5,7 @@ import { SbiService } from './sbi.service';
 export class SbiController {
   constructor(private readonly sbiService: SbiService) {}
 
-  @Get('/assets')
+  @Post('/assets')
   getAssetsHeld(): object {
     return this.sbiService.getAssets();
   }
