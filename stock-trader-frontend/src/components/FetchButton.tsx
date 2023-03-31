@@ -1,11 +1,13 @@
 import Button from "@mui/material/Button";
-import { CircularProgress } from "@mui/material";
-import { EventHandler, MouseEventHandler } from "react";
+import { Box, CircularProgress } from "@mui/material";
+import React, { EventHandler, MouseEventHandler } from "react";
 import { useState } from "react";
 import { resolve } from "path";
 import { useRouter } from "next/router";
+import { LoadingButton } from "@mui/lab";
 
 interface props {
+  startIcon: React.ReactNode;
   variant: "text" | "contained" | "outlined";
   label: string;
   onClick: Function;
@@ -13,7 +15,7 @@ interface props {
 
 const FetchButton = (props: props) => {
   const [isLoading, setIsLoading] = useState(false);
-  const { variant, label, onClick } = props;
+  const { startIcon, variant, label, onClick } = props;
   const router = useRouter();
 
   const clickFetchButton: MouseEventHandler<HTMLButtonElement> = async (e) => {
@@ -24,14 +26,16 @@ const FetchButton = (props: props) => {
     await setIsLoading(false);
   };
 
-  if (isLoading) {
-    return <CircularProgress />;
-  }
-
   return (
-    <Button variant={variant} onClick={clickFetchButton}>
-      {label}
-    </Button>
+    <LoadingButton
+      startIcon={startIcon}
+      loading={isLoading}
+      loadingPosition="start"
+      variant={variant}
+      onClick={clickFetchButton}
+    >
+      <Box component="span">{label}</Box>
+    </LoadingButton>
   );
 };
 

@@ -1,13 +1,18 @@
 import FetchButton from "@/components/FetchButton";
 import AssetContainer from "@/components/AssetContainer";
 import styles from "@/styles/Home.module.scss";
-import { Stack } from "@mui/material";
-import { Paper } from "@mui/material";
-import { Box } from "@mui/material";
-import { Grid } from "@mui/material";
-import { Typography } from "@mui/material";
-import { MouseEventHandler, useState } from "react";
-import { Assessment } from "@mui/icons-material";
+import {
+  MouseEventHandler,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
+import { Chart } from "react-google-charts";
+import Header from "@/components/Header";
+import RefreshButton from "@/components/RefreshButton";
+import { loading } from "../_app";
+import { Box } from "@mui/system";
 
 type stock = {
   acquisition_price: number;
@@ -16,28 +21,25 @@ type stock = {
   stock_code: string;
   stock_name: string;
   stock_type: string;
-  valuation: number;
 };
 
 type assets_held = {
-  stocks: Array<stock>;
+  total_assets_details: Array<stock>;
   total_assets: number;
 };
 
-type responce = {
-  assets_held: assets_held;
-};
-
 export default function Home() {
+  const { isLoading, setIsLoading } = useContext(loading);
+  const [data, setData] = useState([[]]);
   const [assets, setAssets] = useState({
-    stocks: [],
+    total_assets_details: [],
     total_assets: 0,
   } as assets_held);
 
-  const fetchAssets: MouseEventHandler<HTMLButtonElement> = async (e) => {
-    e.preventDefault();
+  const fetchLatestAssets = async () => {
+    setIsLoading(true);
 
-    await fetch("/api/sbi/assets", {
+    await fetch("/api/sbi/latest/assets", {
       method: "POST",
     })
       .then((res) => {
@@ -49,36 +51,64 @@ export default function Home() {
         if (!latest_assets) {
           return;
         }
-        setAssets(latest_assets);
+        setAssets(latest_assets[0]);
+        setData([
+          ["期間", "総資産"],
+          ...latest_assets
+            .sort((a, b) => (a.created_at > b.created_at ? 1 : -1))
+            .map((la) => [
+              new Date(la.created_at).toLocaleDateString("YYYYMMDD"),
+              la.total_assets,
+            ]),
+        ]);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   };
 
-  const updateAssets = (latest_assets_info: responce) => {
-    setAssets(latest_assets_info.assets_held);
+  useLayoutEffect(() => {
+    fetchLatestAssets();
+  }, []);
+
+  const updateAssets: MouseEventHandler<HTMLButtonElement> = async (e) => {
+    e.preventDefault();
+
+    await fetch("/api/sbi/update/assets", {
+      method: "POST",
+    })
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        }
+      })
+      .then((latest_assets) => {
+        if (!latest_assets) {
+          return;
+        }
+        fetchLatestAssets();
+      });
   };
 
   return (
     <>
-      <div className={styles.main}>
-        <FetchButton
-          variant="contained"
-          label="資産を更新"
-          onClick={fetchAssets}
+      <Header node={<RefreshButton onClick={updateAssets} />}></Header>
+      <Box display="flex" justifyContent="center" justifyItems="center">
+        <Chart
+          chartType="LineChart"
+          data={data}
+          width="100%"
+          height="400px"
+          legendToggle
+          options={{
+            title: "資産推移",
+            curveType: "function",
+            backgroundColor: "transparent",
+          }}
         />
-        <div>
-          <div className={styles.title}>
-            <span>総資産</span>
-          </div>
-          <Box className={styles.box}>
-            <Paper elevation={3} className={styles.paper}>
-              <div className={styles.money}>
-                <span>{assets.total_assets.toLocaleString()}</span>
-                <span>円</span>
-              </div>
-            </Paper>
-          </Box>
-        </div>
-        <AssetContainer stocks={assets.stocks}></AssetContainer>
+      </Box>
+      <div className={styles.main}>
+        <AssetContainer stocks={assets.total_assets_details}></AssetContainer>
       </div>
     </>
   );

@@ -31,7 +31,7 @@ model total_assets {
 
 model total_assets_details {
   id                Int          @id @default(autoincrement())
-  total_assets      total_assets @relation(fields: [total_assets_id], references: [id])
+  total_assets      total_assets @relation(fields: [total_assets_id], references: [id], onDelete: Cascade)
   total_assets_id   Int
   stock_type        String
   stock_code        String?

@@ -71,6 +71,17 @@ const renderStockName = (stock_name: string, stock_code?: string) => {
   );
 };
 
+const renderSharesHeld = (stock) => {
+  return (
+    <Box>
+      {"平均取得単価 " + stock.acquisition_price + "円"}
+      {" × " +
+        stock.shares_held +
+        (isInvestmentTrust(stock.stock_type) ? "口" : "株")}
+    </Box>
+  );
+};
+
 const AssetContainer = (props: any) => {
   const { stocks } = props;
 
@@ -84,10 +95,7 @@ const AssetContainer = (props: any) => {
               <Box>{"現在価格 " + stock.current_price}</Box>
             </Box>
             {renderStockName(stock.stock_name)}
-            <Box>
-              {"平均取得単価 " + stock.acquisition_price + "円"}
-              {" × " + stock.shares_held + "株"}
-            </Box>
+            {renderSharesHeld(stock)}
             {renderValuation(stock)}
           </Paper>
         </Grid>
