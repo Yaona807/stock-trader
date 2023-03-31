@@ -5,8 +5,13 @@ import { SbiService } from './sbi.service';
 export class SbiController {
   constructor(private readonly sbiService: SbiService) {}
 
-  @Get('/assets')
-  getAssetsHeld(): object {
-    return this.sbiService.getAssets();
+  @Post('/update/assets')
+  updateAssets(): object {
+    return this.sbiService.updateAssets();
+  }
+
+  @Post('latest/assets')
+  getLatestAssets(): object {
+    return this.sbiService.getLatestAssets();
   }
 }

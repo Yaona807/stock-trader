@@ -7,12 +7,12 @@ import { useRouter } from "next/router";
 import { Box } from "@mui/system";
 import Link from "next/link";
 
-export default function Login() {
+export default function Registration() {
   const { register, handleSubmit } = useForm<any>();
   const router = useRouter();
 
   const onSubmit: SubmitHandler<any> = async (data) => {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch("/api/user/create", {
       headers: {
         "Content-Type": "application/json",
       },
@@ -21,7 +21,8 @@ export default function Login() {
     });
 
     if (res.ok) {
-      router.push("/mypage/home");
+      console.log('OK')
+      // router.push("/mypage/home");
     }
   };
 
@@ -34,7 +35,7 @@ export default function Login() {
       height="100vh"
     >
       <Box textAlign="center" width="350px" fontSize="35px">
-        ログイン
+        新規登録
       </Box>
       <Stack
         component="form"
@@ -56,11 +57,11 @@ export default function Login() {
           {...register("user_password")}
         />
         <Button variant="contained" type="submit">
-          ログイン
+          新規登録する
         </Button>
       </Stack>
       <Box textAlign="center" width="350px" fontSize="15px">
-        新規登録する場合は<Link href="/registration">こちら</Link>から
+        ログインする場合は<Link href="/login">こちら</Link>から
       </Box>
     </Grid>
   );

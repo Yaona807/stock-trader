@@ -1,76 +1,114 @@
 import FetchButton from "@/components/FetchButton";
 import AssetContainer from "@/components/AssetContainer";
 import styles from "@/styles/Home.module.scss";
-import { Stack } from "@mui/material";
-import { Paper } from "@mui/material";
-import { Box } from "@mui/material";
-import { Grid } from "@mui/material";
-import { Typography } from "@mui/material";
-import { useState } from "react";
-import { Assessment } from "@mui/icons-material";
+import {
+  MouseEventHandler,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
+import { Chart } from "react-google-charts";
+import Header from "@/components/Header";
+import RefreshButton from "@/components/RefreshButton";
+import { loading } from "../_app";
+import { Box } from "@mui/system";
 
 type stock = {
   acquisition_price: number;
   current_price: number;
-  shares_held_number: number;
+  shares_held: number;
   stock_code: string;
   stock_name: string;
-  type: string;
-  valuation: number;
+  stock_type: string;
 };
 
 type assets_held = {
-  all_investment_trust_value: number;
-  all_stock_list: Array<stock>;
-  all_stock_value: number;
-  cash: number;
-};
-
-type responce = {
-  assets_held: assets_held;
+  total_assets_details: Array<stock>;
+  total_assets: number;
 };
 
 export default function Home() {
+  const { isLoading, setIsLoading } = useContext(loading);
+  const [data, setData] = useState([[]]);
   const [assets, setAssets] = useState({
-    all_investment_trust_value: 0,
-    all_stock_list: [],
-    all_stock_value: 0,
-    cash: 0,
+    total_assets_details: [],
+    total_assets: 0,
   } as assets_held);
 
-  const updateAssets = (latest_assets_info: responce) => {
-    setAssets(latest_assets_info.assets_held);
+  const fetchLatestAssets = async () => {
+    setIsLoading(true);
+
+    await fetch("/api/sbi/latest/assets", {
+      method: "POST",
+    })
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        }
+      })
+      .then((latest_assets) => {
+        if (!latest_assets) {
+          return;
+        }
+        setAssets(latest_assets[0]);
+        setData([
+          ["期間", "総資産"],
+          ...latest_assets
+            .sort((a, b) => (a.created_at > b.created_at ? 1 : -1))
+            .map((la) => [
+              new Date(la.created_at).toLocaleDateString("YYYYMMDD"),
+              la.total_assets,
+            ]),
+        ]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };
+
+  useLayoutEffect(() => {
+    fetchLatestAssets();
+  }, []);
+
+  const updateAssets: MouseEventHandler<HTMLButtonElement> = async (e) => {
+    e.preventDefault();
+
+    await fetch("/api/sbi/update/assets", {
+      method: "POST",
+    })
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        }
+      })
+      .then((latest_assets) => {
+        if (!latest_assets) {
+          return;
+        }
+        fetchLatestAssets();
+      });
   };
 
   return (
     <>
-      <div className={styles.main}>
-        <FetchButton
-          variant="contained"
-          fetch_url={new URL("http://localhost:3000/api/auth/logout")}
-          label="ログイン"
-          callback={updateAssets}
+      <Header node={<RefreshButton onClick={updateAssets} />}></Header>
+      <Box display="flex" justifyContent="center" justifyItems="center">
+        <Chart
+          chartType="LineChart"
+          data={data}
+          width="100%"
+          height="400px"
+          legendToggle
+          options={{
+            title: "資産推移",
+            curveType: "function",
+            backgroundColor: "transparent",
+          }}
         />
-        <div>
-          <div className={styles.title}>
-            <span>総資産</span>
-          </div>
-          <Box className={styles.box}>
-            <Paper elevation={3} className={styles.paper}>
-              <div className={styles.money}>
-                <span>
-                  {(
-                    assets.all_stock_value +
-                    assets.all_investment_trust_value +
-                    assets.cash
-                  ).toLocaleString()}
-                </span>
-                <span>円</span>
-              </div>
-            </Paper>
-          </Box>
-        </div>
-        <AssetContainer assets={assets}></AssetContainer>
+      </Box>
+      <div className={styles.main}>
+        <AssetContainer stocks={assets.total_assets_details}></AssetContainer>
       </div>
     </>
   );

@@ -29,7 +29,7 @@ const prisma = new PrismaClient();
 
 @Injectable()
 export class SbiService {
-  async getAssets(): Promise<object> {
+  async updateAssets(): Promise<object> {
     const options = {
       mode: 'json',
       args: ['get_assets_held'],
@@ -41,6 +41,36 @@ export class SbiService {
     )) as assets;
 
     return await prisma.$transaction(async (prisma) => {
+      const date_time = new Date(new Date().setHours(0, 0, 0, 0));
+
+      await prisma.total_assets
+        .findMany({
+          select: {
+            id: true,
+          },
+          where: {
+            created_at: {
+              gte: date_time,
+            },
+          },
+        })
+        .then((delete_total_assets) => {
+          if (delete_total_assets && delete_total_assets.length == 0) {
+            return;
+          }
+
+          Promise.all(
+            delete_total_assets.map(
+              async (dta) =>
+                await prisma.total_assets.delete({
+                  where: {
+                    id: dta.id,
+                  },
+                }),
+            ),
+          );
+        });
+
       const total_assets = await prisma.total_assets.create({
         data: {
           user_id: 1,
@@ -79,6 +109,34 @@ export class SbiService {
         total_assets: total_assets.total_assets,
         stocks: total_assets_details,
       };
+    });
+  }
+  async getLatestAssets(): Promise<any> {
+    return await prisma.$transaction(async (prisma) => {
+      return await prisma.total_assets.findMany({
+        where: {
+          user_id: 1,
+        },
+        select: {
+          total_assets: true,
+          created_at: true,
+          total_assets_details: {
+            select: {
+              stock_code: true,
+              stock_name: true,
+              shares_held: true,
+              stock_type: true,
+              acquisition_price: true,
+              current_price: true,
+              created_at: true,
+            },
+          },
+        },
+        orderBy: {
+          id: 'desc',
+        },
+        take: 7,
+      });
     });
   }
 }

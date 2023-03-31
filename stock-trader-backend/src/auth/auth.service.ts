@@ -1,15 +1,28 @@
 import { Injectable } from '@nestjs/common';
+import { compare } from 'bcrypt';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class AuthService {
-  login(req, res): any {
-    if (req.body.user_id === 'a') {
+  constructor(private userService: UserService) {}
+
+  async login(req, res) {
+    const saved_user_password = await this.userService.getUserPassword(
+      req.body.user_id,
+    );
+
+    const is_same_password = await compare(
+      req.body.user_password,
+      saved_user_password,
+    );
+
+    if (is_same_password) {
       return;
     } else {
-      // sessionを削除するためにlogoutを呼び出す
-      this.logout(req, res);
+      throw new Error('password mismatch');
     }
   }
+
   logout(req, res): any {
     const cookie = req.cookies;
     for (const prop in cookie) {
